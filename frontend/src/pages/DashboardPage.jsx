@@ -33,7 +33,7 @@ export function DashboardPage() {
               workspace overview
             </span>
           </div>
-          <h1 className="text-[30px] font-semibold leading-none tracking-[-0.6px]">Good to see you, Shubham.</h1>
+          <h1 className="text-[30px] font-semibold leading-none tracking-[-0.6px]">Good to see you, Bhagyashri.</h1>
           <p className="text-[14px] text-ink-600 dark:text-ink-400 mt-2">
             Here's where your work stands today.
           </p>
@@ -51,9 +51,9 @@ export function DashboardPage() {
       <section className="db-rise db-rise-1 grid gap-3 lg:grid-cols-[2fr_3fr]">
         <HeroProgress done={done} total={total} pct={pct} />
         <div className="grid grid-cols-3 gap-3">
-          <ChipStat label="In progress"  value={counts.in_progress || 0} icon={IconClock}        tone="accent"  />
-          <ChipStat label="Blocked"      value={counts.blocked || 0}     icon={IconAlertCircle}  tone="danger"  />
-          <ChipStat label="To do"        value={counts.todo || 0}        icon={IconCheck}        tone="neutral" />
+          <ChipStat label="In progress" value={counts.in_progress || 0} icon={IconClock} tone="accent" />
+          <ChipStat label="Blocked" value={counts.blocked || 0} icon={IconAlertCircle} tone="danger" />
+          <ChipStat label="To do" value={counts.todo || 0} icon={IconCheck} tone="neutral" />
         </div>
       </section>
 
@@ -102,8 +102,8 @@ function HeroProgress({ done, total, pct }) {
 
 function ChipStat({ label, value, icon: Icon, tone }) {
   const tones = {
-    accent:  { bg: 'bg-accent-subtle dark:bg-accent/15', fg: 'text-accent-muted dark:text-accent' },
-    danger:  { bg: 'bg-danger-bg',  fg: 'text-[#A32D2D]' },
+    accent: { bg: 'bg-accent-subtle dark:bg-accent/15', fg: 'text-accent-muted dark:text-accent' },
+    danger: { bg: 'bg-danger-bg', fg: 'text-[#A32D2D]' },
     neutral: { bg: 'bg-ink-50 dark:bg-white/10', fg: 'text-ink-600 dark:text-ink-400' },
   };
   const t = tones[tone] || tones.neutral;
