@@ -15,3 +15,17 @@ dist/
 
 # claude's personal scratch notes (local only)
 CLAUDE.md
+
+# Terraform local files
+**/.terraform/
+*.tfplan
+terraform/azure/terraform.tfvars
+terraform/azure/backend.hcl
+
+# Azure DevBoard private/runtime files
+.env
+**/.terraform/
+*.tfplan
+terraform/azure/terraform.tfvars
+terraform/azure/backend.hcl
+k8s-azure/secrets.yml
