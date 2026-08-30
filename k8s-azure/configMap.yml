@@ -5,3 +5,4 @@ metadata:
   namespace: devboard
 data:
   POSTGRES_USER: devboard
+  POSTGRES_DB: devboard

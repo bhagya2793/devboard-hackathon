@@ -29,3 +29,14 @@ output "key_vault_name" {
 output "aks_oidc_issuer_url" {
   value = azurerm_kubernetes_cluster.main.oidc_issuer_url
 }
+output "workload_identity_name" {
+  value = azurerm_user_assigned_identity.devboard_workload.name
+}
+
+output "workload_identity_client_id" {
+  value = azurerm_user_assigned_identity.devboard_workload.client_id
+}
+
+output "workload_identity_principal_id" {
+  value = azurerm_user_assigned_identity.devboard_workload.principal_id
+}

@@ -43,6 +43,41 @@ resource "azurerm_virtual_network" "main" {
 
   tags = local.common_tags
 }
+# ---------------------------------------------------------
+# DevBoard Workload Identity for Azure Key Vault
+# ---------------------------------------------------------
+
+resource "azurerm_user_assigned_identity" "devboard_workload" {
+  name                = "id-devboard-workload-${local.suffix}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+
+  tags = local.common_tags
+}
+
+# Allow the AKS workload identity to READ secrets from Key Vault
+resource "azurerm_role_assignment" "devboard_kv_secrets_user" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets User"
+  principal_id         = azurerm_user_assigned_identity.devboard_workload.principal_id
+}
+
+# Allow the currently logged-in Terraform user to CREATE/UPDATE secrets
+resource "azurerm_role_assignment" "current_user_kv_secrets_officer" {
+  scope                = azurerm_key_vault.main.id
+  role_definition_name = "Key Vault Secrets Officer"
+  principal_id         = data.azurerm_client_config.current.object_id
+}
+
+# Trust the Kubernetes ServiceAccount through AKS OIDC
+resource "azurerm_federated_identity_credential" "devboard_workload" {
+  name                      = "fic-devboard-workload"
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = azurerm_kubernetes_cluster.main.oidc_issuer_url
+  user_assigned_identity_id = azurerm_user_assigned_identity.devboard_workload.id
+
+  subject = "system:serviceaccount:devboard:devboard-workload-sa"
+}
 
 # ---------------------------------------------------------
 # AKS Subnet
@@ -120,13 +155,17 @@ resource "azurerm_kubernetes_cluster" "main" {
   role_based_access_control_enabled = true
 
   default_node_pool {
-    name       = "system"
-    node_count = 1
-    vm_size    = var.node_vm_size
-
+    name           = "system"
+    node_count     = 1
+    vm_size        = var.node_vm_size
     vnet_subnet_id = azurerm_subnet.aks.id
+    os_disk_type   = "Managed"
 
-    os_disk_type = "Managed"
+    upgrade_settings {
+      max_surge                     = "10%"
+      drain_timeout_in_minutes      = 0
+      node_soak_duration_in_minutes = 0
+    }
   }
 
   identity {
