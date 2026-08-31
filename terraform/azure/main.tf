@@ -226,5 +226,5 @@ resource "azurerm_federated_identity_credential" "github_actions" {
   issuer                    = "https://token.actions.githubusercontent.com"
   user_assigned_identity_id = azurerm_user_assigned_identity.github_actions.id
 
-  subject = "repo:bhagya2793/devboard-hackathon:ref:refs/heads/azure-devops-project"
+  subject = "repo:bhagya2793@265142970/devboard-hackathon@1329471574:ref:refs/heads/azure-devops-project"
 }

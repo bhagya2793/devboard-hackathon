@@ -34,9 +34,33 @@ jobs:
             --query "{Subscription:name,Tenant:tenantId}" \
             --output table
 
-      - name: Verify ACR
+      - name: Get ACR token using Azure identity
+        id: acr-token
+        shell: bash
         run: |
-          az acr show \
-            --name "${{ vars.ACR_NAME }}" \
-            --query "{Name:name,LoginServer:loginServer}" \
-            --output table
+          set -euo pipefail
+
+          AAD_TOKEN=$(az account get-access-token \
+            --resource https://containerregistry.azure.net \
+            --query accessToken \
+            -o tsv)
+
+          ACR_TOKEN=$(curl -sS -X POST \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "grant_type=access_token&service=${{ vars.ACR_LOGIN_SERVER }}&tenant=${{ secrets.AZURE_TENANT_ID }}&access_token=${AAD_TOKEN}" \
+            "https://${{ vars.ACR_LOGIN_SERVER }}/oauth2/exchange" \
+            | python3 -c 'import sys,json; print(json.load(sys.stdin)["refresh_token"])')
+
+          echo "::add-mask::$ACR_TOKEN"
+          echo "token=$ACR_TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Login to ACR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ vars.ACR_LOGIN_SERVER }}
+          username: 00000000-0000-0000-0000-000000000000
+          password: ${{ steps.acr-token.outputs.token }}
+
+      - name: Verify ACR data-plane access
+        run: |
+          docker pull "${{ vars.ACR_LOGIN_SERVER }}/devboard-backend:v1"
