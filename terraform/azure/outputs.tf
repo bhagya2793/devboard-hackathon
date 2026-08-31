@@ -40,3 +40,14 @@ output "workload_identity_client_id" {
 output "workload_identity_principal_id" {
   value = azurerm_user_assigned_identity.devboard_workload.principal_id
 }
+output "github_actions_identity_name" {
+  value = azurerm_user_assigned_identity.github_actions.name
+}
+
+output "github_actions_client_id" {
+  value = azurerm_user_assigned_identity.github_actions.client_id
+}
+
+output "github_actions_principal_id" {
+  value = azurerm_user_assigned_identity.github_actions.principal_id
+}

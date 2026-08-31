@@ -201,3 +201,30 @@ resource "azurerm_role_assignment" "aks_acr_pull" {
 
   principal_id = azurerm_kubernetes_cluster.main.kubelet_identity[0].object_id
 }
+# ---------------------------------------------------------
+# GitHub Actions Workload Identity
+# ---------------------------------------------------------
+
+resource "azurerm_user_assigned_identity" "github_actions" {
+  name                = "id-devboard-github-${local.suffix}"
+  location            = azurerm_resource_group.main.location
+  resource_group_name = azurerm_resource_group.main.name
+  tags                = local.common_tags
+}
+
+# Allow GitHub Actions to push/pull images in ACR
+resource "azurerm_role_assignment" "github_actions_acr_push" {
+  scope                = azurerm_container_registry.main.id
+  role_definition_name = "AcrPush"
+  principal_id         = azurerm_user_assigned_identity.github_actions.principal_id
+}
+
+# GitHub Actions -> Azure OIDC federation
+resource "azurerm_federated_identity_credential" "github_actions" {
+  name                      = "fic-github-actions"
+  audience                  = ["api://AzureADTokenExchange"]
+  issuer                    = "https://token.actions.githubusercontent.com"
+  user_assigned_identity_id = azurerm_user_assigned_identity.github_actions.id
+
+  subject = "repo:bhagya2793/devboard-hackathon:ref:refs/heads/azure-devops-project"
+}
