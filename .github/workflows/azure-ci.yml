@@ -1,0 +1,173 @@
+name: Azure CI - Build Scan Push
+
+on:
+  workflow_dispatch:
+
+  push:
+    branches:
+      - azure-devops-project
+    paths:
+      - "backend/**"
+      - "frontend/**"
+      - ".github/workflows/azure-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+
+  # -------------------------------------------------------
+  # Backend Go Tests
+  # -------------------------------------------------------
+  backend-tests:
+    name: Backend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version-file: backend/go.mod
+          cache-dependency-path: backend/go.sum
+
+      - name: Run backend tests
+        working-directory: backend
+        run: |
+          go test ./...
+
+
+  # -------------------------------------------------------
+  # Frontend Tests + Build
+  # -------------------------------------------------------
+  frontend-tests:
+    name: Frontend Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm test -- --run
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+
+  # -------------------------------------------------------
+  # Build -> Security Scan -> Azure OIDC -> Push to ACR
+  # -------------------------------------------------------
+  build-scan-push:
+    name: Build Scan Push - ${{ matrix.service }}
+
+    needs:
+      - backend-tests
+      - frontend-tests
+
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+      id-token: write
+
+    strategy:
+      fail-fast: false
+      matrix:
+        service:
+          - backend
+          - frontend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      - name: Build Docker image
+        shell: bash
+        run: |
+          IMAGE="${{ vars.ACR_LOGIN_SERVER }}/devboard-${{ matrix.service }}:sha-${GITHUB_SHA}"
+
+          echo "Building: $IMAGE"
+
+          docker build \
+            -t "$IMAGE" \
+            "./${{ matrix.service }}"
+
+      - name: Trivy vulnerability scan
+        uses: aquasecurity/trivy-action@0.36.0
+        with:
+          image-ref: ${{ vars.ACR_LOGIN_SERVER }}/devboard-${{ matrix.service }}:sha-${{ github.sha }}
+          format: table
+          exit-code: "1"
+          ignore-unfixed: true
+          vuln-type: os,library
+          severity: HIGH,CRITICAL
+
+      - name: Azure Login using OIDC
+        uses: azure/login@v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Get ACR token using Azure identity
+        id: acr-token
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          AAD_TOKEN=$(az account get-access-token \
+            --resource https://containerregistry.azure.net \
+            --query accessToken \
+            -o tsv)
+
+          ACR_TOKEN=$(curl -sS -X POST \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            -d "grant_type=access_token&service=${{ vars.ACR_LOGIN_SERVER }}&tenant=${{ secrets.AZURE_TENANT_ID }}&access_token=${AAD_TOKEN}" \
+            "https://${{ vars.ACR_LOGIN_SERVER }}/oauth2/exchange" \
+            | python3 -c 'import sys,json; print(json.load(sys.stdin)["refresh_token"])')
+
+          echo "::add-mask::$ACR_TOKEN"
+          echo "token=$ACR_TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Login to ACR
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ vars.ACR_LOGIN_SERVER }}
+          username: 00000000-0000-0000-0000-000000000000
+          password: ${{ steps.acr-token.outputs.token }}
+
+      - name: Push image to ACR
+        shell: bash
+        run: |
+          IMAGE="${{ vars.ACR_LOGIN_SERVER }}/devboard-${{ matrix.service }}:sha-${GITHUB_SHA}"
+
+          docker push "$IMAGE"
+
+          echo "Successfully pushed:"
+          echo "$IMAGE"
+
+      - name: Pipeline summary
+        shell: bash
+        run: |
+          echo "### DevBoard CI Result" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Service: **${{ matrix.service }}**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Trivy gate: **Passed**" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Image tag: \`sha-${GITHUB_SHA}\`" >> "$GITHUB_STEP_SUMMARY"
+          echo "- Registry: \`${{ vars.ACR_LOGIN_SERVER }}\`" >> "$GITHUB_STEP_SUMMARY"
