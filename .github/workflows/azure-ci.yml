@@ -109,7 +109,7 @@ jobs:
             "./${{ matrix.service }}"
 
       - name: Trivy vulnerability scan
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           image-ref: ${{ vars.ACR_LOGIN_SERVER }}/devboard-${{ matrix.service }}:sha-${{ github.sha }}
           format: table
