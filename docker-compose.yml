@@ -1,6 +1,6 @@
 # DevBoard (advanced) — UI + Go backend + Postgres. That's the whole stack.
 #
-#   browser ──▶ frontend (vite preview :4173) ──/api──▶ backend (Go) ──▶ postgres
+#   browser ──▶ frontend (vite preview :8080) ──/api──▶ backend (Go) ──▶ postgres
 #
 # Every configurable value lives in .env — Compose loads it automatically and
 # fills in the ${...} placeholders below. Edit .env, not this file, to change
@@ -48,7 +48,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "${FRONTEND_HOST_PORT}:4173"   # vite preview serves on 4173 inside the container
+      - "${FRONTEND_HOST_PORT}:8080"   # vite preview serves on 4173 inside the container
 
 volumes:
   pgdata:

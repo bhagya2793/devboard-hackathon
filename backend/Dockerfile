@@ -14,7 +14,8 @@ RUN CGO_ENABLED=0 GOOS=linux go build \
 
 FROM alpine:3.24
 
-RUN addgroup -S devboard && \
+RUN apk upgrade --no-cache && \
+    addgroup -S devboard && \
     adduser -S devboard -G devboard
 
 WORKDIR /app

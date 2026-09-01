@@ -19,7 +19,7 @@ spec:
       - name: devboard-frontend
         image: acrdevboard8jtn7p.azurecr.io/devboard-frontend:v1
         ports:
-        - containerPort: 4173
+        - containerPort: 8080
         resources:
           requests: # min needed
             cpu: 50m

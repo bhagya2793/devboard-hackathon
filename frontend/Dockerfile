@@ -1,33 +1,38 @@
-# Stage 1 - Build React app
+# Stage 1 - Build React/Vite application
+# ---------------------------------------------------------
 FROM node:22-alpine AS build
 
 WORKDIR /app
 
-COPY package*.json ./
+COPY package.json package-lock.json ./
 
-RUN npm install --legacy-peer-deps
+RUN npm ci
 
 COPY . .
 
 RUN npm run build
 
 
-# Stage 2 - Runtime
-FROM node:22-alpine
+# ---------------------------------------------------------
+# Stage 2 - Production runtime
+# No Node/npm/node_modules in the final image
+# ---------------------------------------------------------
+FROM nginxinc/nginx-unprivileged:1.30.4-alpine3.24
 
-WORKDIR /app
+# Refresh Alpine packages, including OpenSSL security fixes.
+# Root is used only during IMAGE BUILD.
+USER root
 
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/node_modules ./node_modules
+RUN apk upgrade --no-cache
 
-COPY vite.preview.config.js ./vite.config.js
+# NGINX unprivileged runtime user
+USER 101
 
-EXPOSE 4173
+COPY --chown=101:101 nginx.conf /etc/nginx/conf.d/default.conf
 
-# Run as built-in non-root node user
-USER node
+COPY --from=build --chown=101:101 \
+    /app/dist \
+    /usr/share/nginx/html
 
-ENTRYPOINT ["node", "--no-warnings"]
-
-CMD ["./node_modules/.bin/vite", "preview", "--host", "0.0.0.0", "--port", "4173"]
+EXPOSE 8080
 
