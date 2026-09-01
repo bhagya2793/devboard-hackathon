@@ -1,30 +1,29 @@
-# Stage 1 - Build Go application
-FROM golang:1.22-alpine AS builder
+FROM golang:1.26.7-alpine AS builder
 
 WORKDIR /app
 
 COPY go.mod go.sum ./
-
 RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux go build -o devboard-backend .
+RUN CGO_ENABLED=0 GOOS=linux go build \
+    -trimpath \
+    -ldflags="-s -w" \
+    -o devboard-backend .
 
+FROM alpine:3.24
 
-# Stage 2 - Small runtime image
-FROM alpine:3.20
+RUN addgroup -S devboard && \
+    adduser -S devboard -G devboard
 
 WORKDIR /app
 
-RUN addgroup -S appgroup && \
-    adduser -S appuser -G appgroup
-
 COPY --from=builder /app/devboard-backend ./devboard-backend
 
-RUN chmod +x ./devboard-backend
+RUN chown devboard:devboard ./devboard-backend
 
-USER appuser
+USER devboard
 
 EXPOSE 8080
 
