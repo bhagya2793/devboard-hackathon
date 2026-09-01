@@ -1,0 +1,23 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: devboard
+  namespace: argocd
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/bhagya2793/devboard-hackathon.git
+    targetRevision: azure-devops-project
+    path: gitops/devboard
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: devboard
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
